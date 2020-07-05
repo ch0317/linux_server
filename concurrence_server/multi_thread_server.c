@@ -46,6 +46,8 @@ int main(int argc, char *argv[]) {
 	server_addr.sin_port = htons(54322);
 	server_addr.sin_family = AF_INET; //address family
 	
+	int flag = 1;
+	setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); //reuse
 	bind(lfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
 	listen(lfd, 36);
