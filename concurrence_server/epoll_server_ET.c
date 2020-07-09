@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <errno.h>
 
 int main()
 {
@@ -47,13 +49,16 @@ int main()
 					exit(1);
 				}
 				
+				int flag = fcntl(cfd, F_GETFL);
+				flag |= O_NONBLOCK;
+				fcntl(cfd, F_SETFL, flag);
 				struct epoll_event temp;
 				temp.data.fd = cfd;
-				temp.events = EPOLLIN;
+				temp.events = EPOLLIN | EPOLLET;
 				epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &temp);
 				char ip[64];
 				printf("client IP: %s , Port: %d\n",
-								inet_ntop(AF_INET, &client_addr.sin_addr.s_addr,ip, sizeof(ip)), ntohs(client_addr.sin_port));
+				inet_ntop(AF_INET, &client_addr.sin_addr.s_addr,ip, sizeof(ip)), ntohs(client_addr.sin_port));
 
 			}
 			else{
@@ -62,11 +67,21 @@ int main()
 					continue;
 				}
 
-				char buff[1024] = {0};
-				int len = recv(fd, buff, sizeof(buff),0);
+				char buff[10] = {0};
+				int len;
+				while((len = recv(fd, buff, sizeof(buff),0)) > 0){
+					
+					write(STDOUT_FILENO, buff, len);
+					send(fd, buff, len, 0);
+				}
 				if(len == -1){
-					perror("recv error");
-					close(fd);
+					if(errno == EAGAIN){
+						printf("read to end.\n");	
+					}
+					else{
+						perror("recv error");
+						exit(1);
+					}
 				}
 				else if(len == 0){
 					printf("client disconnected...\n");
