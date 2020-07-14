@@ -11,7 +11,17 @@
 void read_cb(struct bufferevent *bev, void *arg)
 {
     char buf[1024] = {0};
-    bufferevent_read()
+    bufferevent_read(bev, buf, sizeof(buf));
+    char* p = "Message have been recieved.";
+    printf(" %s\n",p);
+
+    bufferevent_write(bev, p, strlen(p) + 1);
+    printf("send buf: %s\n",buf); 
+}
+
+void write_cb(struct bufferevent *bev, void *arg)
+{
+    printf("write buffer callback\n");
 }
 
 void event_cb(struct bufferevnet *bev, short events, void *arg)
@@ -22,15 +32,28 @@ void event_cb(struct bufferevnet *bev, short events, void *arg)
     }
     else if(events & BEV_EVENT_ERROR)
     {
-
+        printf("other errors.\n");
     }
 
     bufferevent_free(bev);
 }
 
-void listen_cb()
+void cb_listener(
+                 struct evconnlistener *listener,
+                 evutil_socket_t fd,
+                 struct sockaddr *addr,
+                 int len, void *ptr
+                )
 {
-    
+    printf("connect new client\n");
+
+    struct event_base* base = (struct event_base*)ptr;
+    //add new event
+    struct bufferevent *bev;
+    bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+
+bufferevent_setcb(bev, read_cb, write_cb, event_cb, NULL);
+    bufferevent_enable(bev, EV_READ);
 }
 
 int main()
@@ -44,7 +67,7 @@ int main()
 
 
     struct evconnlistener* listen = NULL;
-    listen = evconnlistener_new_bind(base, listen_cb,base, LEV_OPT_CLOSE_ON_FREE
+    listen = evconnlistener_new_bind(base, cb_listener, base, LEV_OPT_CLOSE_ON_FREE
                                      | LEV_OPT_REUSEABLE,
                                      -1, (struct sockaddr*)&serv, sizeof(serv));
 
